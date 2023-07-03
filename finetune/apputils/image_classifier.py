@@ -34,7 +34,6 @@ import argparse
 import distiller
 import distiller.apputils as apputils
 from distiller.data_loggers import *
-import distiller.quantization as quantization
 import distiller.models as models
 from distiller.models import create_model
 from distiller.utils import float_range_argparse_checker as float_range
@@ -312,7 +311,6 @@ def init_classifier_compression_arg_parser(include_ptq_lapq_args=False):
                         help='Load a model without DataParallel wrapping it')
     parser.add_argument('--thinnify', dest='thinnify', action='store_true', default=False,
                         help='physically remove zero-filters and create a smaller model')
-    distiller.quantization.add_post_train_quant_args(parser, add_lapq_args=include_ptq_lapq_args)
     return parser
 
 
@@ -582,10 +580,7 @@ def train(train_loader, model, criterion, optimizer, epoch,
             # Handle loss calculation for inception models separately due to auxiliary outputs
             # if user turned off auxiliary classifiers by hand, then loss should be calculated normally,
             # so, we have this check to ensure we only call this function when output is a tuple
-            if models.is_inception(args.arch) and isinstance(output, tuple):
-                loss = inception_training_loss(output, target, criterion, args)
-            else:
-                loss = criterion(output, target)
+            loss = criterion(output, target)
             # Measure accuracy
             # For inception models, we only consider accuracy of main classifier
             if isinstance(output, tuple):
@@ -751,43 +746,6 @@ def _validate(data_loader, model, criterion, loggers, args, epoch=-1):
         return total_top1, total_top5, losses_exits_stats[args.num_exits-1]
 
 
-def inception_training_loss(output, target, criterion, args):
-    """Compute weighted loss for Inception networks as they have auxiliary classifiers
-
-    Auxiliary classifiers were added to inception networks to tackle the vanishing gradient problem
-    They apply softmax to outputs of one or more intermediate inception modules and compute auxiliary
-    loss over same labels.
-    Note that auxiliary loss is purely used for training purposes, as they are disabled during inference.
-
-    GoogleNet has 2 auxiliary classifiers, hence two 3 outputs in total, output[0] is main classifier output,
-    output[1] is aux2 classifier output and output[2] is aux1 classifier output and the weights of the
-    aux losses are weighted by 0.3 according to the paper (C. Szegedy et al., "Going deeper with convolutions,"
-    2015 IEEE Conference on Computer Vision and Pattern Recognition (CVPR), Boston, MA, 2015, pp. 1-9.)
-
-    All other versions of Inception networks have only one auxiliary classifier, and the auxiliary loss
-    is weighted by 0.4 according to PyTorch documentation
-    # From https://discuss.pytorch.org/t/how-to-optimize-inception-model-with-auxiliary-classifiers/7958
-    """
-    weighted_loss = 0
-    if args.arch == 'googlenet':
-        # DEFAULT, aux classifiers are NOT included in PyTorch Pretrained googlenet model as they are NOT trained,
-        # they are only present if network is trained from scratch. If you need to fine tune googlenet (e.g. after
-        # pruning a pretrained model), then you have to explicitly enable aux classifiers when creating the model
-        # DEFAULT, in case of pretrained model, output length is 1, so loss will be calculated in main training loop
-        # instead of here, as we enter this function only if output is a tuple (len>1)
-        # TODO: Enable user to feed some input to add aux classifiers for pretrained googlenet model
-        outputs, aux2_outputs, aux1_outputs = output    # extract all 3 outputs
-        loss0 = criterion(outputs, target)
-        loss1 = criterion(aux1_outputs, target)
-        loss2 = criterion(aux2_outputs, target)
-        weighted_loss = loss0 + 0.3*loss1 + 0.3*loss2
-    else:
-        outputs, aux_outputs = output    # extract two outputs
-        loss0 = criterion(outputs, target)
-        loss1 = criterion(aux_outputs, target)
-        weighted_loss = loss0 + 0.4*loss1
-    return weighted_loss
-
 
 def earlyexit_loss(output, target, criterion, args):
     """Compute the weighted sum of the exits losses
@@ -870,13 +828,6 @@ def earlyexit_validate_stats(args):
     return total_top1, total_top5, losses_exits_stats
 
 
-def _convert_ptq_to_pytorch(model, args):
-    msglogger.info('Converting Distiller PTQ model to PyTorch quantization API')
-    dummy_input = distiller.get_dummy_input(input_shape=model.input_shape)
-    model = quantization.convert_distiller_ptq_model_to_pytorch(model, dummy_input, backend=args.qe_pytorch_backend)
-    msglogger.debug('\nModel after conversion:\n{}'.format(model))
-    args.device = 'cpu'
-    return model
 
 
 def evaluate_model(test_loader, model, criterion, loggers, activations_collectors=None, args=None, scheduler=None):
@@ -897,74 +848,6 @@ def evaluate_model(test_loader, model, criterion, loggers, activations_collector
     else:
         return quantize_and_test_model(test_loader, model, criterion, args, loggers,
                                        scheduler=scheduler, save_flag=True)
-
-
-def quantize_and_test_model(test_loader, model, criterion, args, loggers=None, scheduler=None, save_flag=True):
-    """Collect stats using test_loader (when stats file is absent),
-
-    clone the model and quantize the clone, and finally, test it.
-    args.device is allowed to differ from the model's device.
-    When args.qe_calibration is set to None, uses 0.05 instead.
-
-    scheduler - pass scheduler to store it in checkpoint
-    save_flag - defaults to save both quantization statistics and checkpoint.
-    """
-    if hasattr(model, 'quantizer_metadata') and \
-            model.quantizer_metadata['type'] == distiller.quantization.PostTrainLinearQuantizer:
-        raise RuntimeError('Trying to invoke post-training quantization on a model that has already been post-'
-                           'train quantized. Model was likely loaded from a checkpoint. Please run again without '
-                           'passing the --quantize-eval flag')
-    if not (args.qe_dynamic or args.qe_stats_file or args.qe_config_file):
-        args_copy = copy.deepcopy(args)
-        args_copy.qe_calibration = args.qe_calibration if args.qe_calibration is not None else 0.05
-
-        # set stats into args stats field
-        args.qe_stats_file = acts_quant_stats_collection(
-            model, criterion, loggers, args_copy, save_to_file=save_flag)
-
-    args_qe = copy.deepcopy(args)
-    if args.device == 'cpu':
-        # NOTE: Even though args.device is CPU, we allow here that model is not in CPU.
-        qe_model = distiller.make_non_parallel_copy(model).cpu()
-    else:
-        qe_model = copy.deepcopy(model).to(args.device)
-
-    quantizer = quantization.PostTrainLinearQuantizer.from_args(qe_model, args_qe)
-    dummy_input = distiller.get_dummy_input(input_shape=model.input_shape)
-    quantizer.prepare_model(dummy_input)
-
-    if args.qe_convert_pytorch:
-        qe_model = _convert_ptq_to_pytorch(qe_model, args_qe)
-
-    test_res = test(test_loader, qe_model, criterion, loggers, args=args_qe)
-
-    if save_flag:
-        checkpoint_name = 'quantized'
-        apputils.save_checkpoint(0, args_qe.arch, qe_model, scheduler=scheduler,
-            name='_'.join([args_qe.name, checkpoint_name]) if args_qe.name else checkpoint_name,
-            dir=msglogger.logdir, extras={'quantized_top1': test_res[0]})
-
-    del qe_model
-    return test_res
-
-
-def acts_quant_stats_collection(model, criterion, loggers, args, test_loader=None, save_to_file=False):
-    msglogger.info('Collecting quantization calibration stats based on {:.1%} of test dataset'
-                   .format(args.qe_calibration))
-    if test_loader is None:
-        tmp_args = copy.deepcopy(args)
-        tmp_args.effective_test_size = tmp_args.qe_calibration
-        # Batch size 256 causes out-of-memory errors on some models (due to extra space taken by
-        # stats calculations). Limiting to 128 for now.
-        # TODO: Come up with "smarter" limitation?
-        tmp_args.batch_size = min(128, tmp_args.batch_size)
-        test_loader = load_data(tmp_args, fixed_subset=True, load_train=False, load_val=False)
-    test_fn = partial(test, test_loader=test_loader, criterion=criterion,
-                      loggers=loggers, args=args, activations_collectors=None)
-    with distiller.get_nonparallel_clone_model(model) as cmodel:
-        return collect_quant_stats(cmodel, test_fn, classes=None,
-                                   inplace_runtime_check=True, disable_inplace_attrs=True,
-                                   save_dir=msglogger.logdir if save_to_file else None)
 
 
 def acts_histogram_collection(model, criterion, loggers, args):
