@@ -56,7 +56,7 @@ import logging
 from functools import partial
 import distiller
 from distiller.models import create_model
-import distiller.apputils.image_classifier as classifier
+import apputils.image_classifier as classifier
 import distiller.apputils as apputils
 import parser
 import os
