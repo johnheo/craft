@@ -32,7 +32,7 @@ import numpy as np
 import h5py
 import pandas as pd
 from autoaugment import CIFAR10Policy, Cutout
-import distiller
+
 
 
 
@@ -691,40 +691,16 @@ def get_data_loaders(datasets_fn, data_dir, batch_size, num_workers, parallel='D
     train_dataset, test_dataset = datasets_fn(data_dir)
 
     worker_init_fn = None
-    if deterministic:
-        distiller.set_deterministic()
-        worker_init_fn = __deterministic_worker_init_fn
-    if (data_proxy):
-         indices = []
-         valid_indices = []
-         file1 = open('/data/projects/nullanet/src/seyedarmin_sampling/nulla_distiller/nulla_distiller/examples/classifier_compression/design-42/proxy_train.txt', 'r')
-         Lines = file1.readlines()
-         for word in Lines:
-           index = int(word.split(' ')[0])
-           indices.append(index)
-         file1 = open('/data/projects/nullanet/src/seyedarmin_sampling/nulla_distiller/nulla_distiller/examples/classifier_compression/design-42/proxy_val.txt', 'r')
-         Lines = file1.readlines()
-         for word in Lines:
-           index = int(word.split(' ')[0])
-           indices.append(index)
-         #print(indices)
-         indices = list(indices)
-         #valid_indices = list(valid_indices)
-         #train_dataset = train_dataset[indices]
-         num_train = len(indices)
-    else:
-        num_train = len(train_dataset)
-        indices = list(range(num_train))
+
+    num_train = len(train_dataset)
+    indices = list(range(num_train))
         #print(indices)
     # TODO: Switch to torch.utils.data.datasets.random_split()
 
     # We shuffle indices here in case the data is arranged by class, in which case we'd would get mutually
     # exclusive datasets if we didn't shuffle
     np.random.shuffle(indices)
-   # np.random.shuffle(valid_indices)
-    #print(indices)
-    #print('parallel is ')
-    #print(parallel)
+
     if parallel != 'DDP':
         valid_indices, train_indices = __split_list(indices, validation_split)
         #train_indices = indices
