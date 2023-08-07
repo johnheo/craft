@@ -86,30 +86,9 @@ def handle_subapps(model, criterion, optimizer, compression_scheduler, pylogger,
         return test_loader
 
     do_exit = False
-    if args.greedy:
-        greedy(model, criterion, optimizer, pylogger, args)
-        do_exit = True
-    elif args.summary:
-        # This sample application can be invoked to produce various summary reports
-        for summary in args.summary:
-            distiller.model_summary(model, summary, args.dataset)
-        do_exit = True
-    elif args.export_onnx is not None:
-        distiller.export_img_classifier_to_onnx(model,
-                                                os.path.join(msglogger.logdir, args.export_onnx),
-                                                args.dataset, add_softmax=True, verbose=False)
-        do_exit = True
-    elif args.qe_calibration and not (args.evaluate and args.quantize_eval):
-        classifier.acts_quant_stats_collection(model, criterion, pylogger, args, save_to_file=True)
-        do_exit = True
-    elif args.activation_histograms:
-        classifier.acts_histogram_collection(model, criterion, pylogger, args)
-        do_exit = True
-    elif args.sensitivity is not None:
-        test_loader = load_test_data(args)
-        sensitivities = np.arange(*args.sensitivity_range)
-        sensitivity_analysis(model, criterion, test_loader, pylogger, args, sensitivities)
-        do_exit = True
+
+
+
     elif args.evaluate:
         if args.quantize_eval and args.qe_lapq:
             image_classifier_ptq_lapq(model, criterion, pylogger, args)
@@ -119,15 +98,7 @@ def handle_subapps(model, criterion, optimizer, compression_scheduler, pylogger,
                 classifier.create_activation_stats_collectors(model, *args.activation_stats),
                 args, scheduler=compression_scheduler)
         do_exit = True
-    elif args.thinnify:
-        assert args.resumed_checkpoint_path is not None, \
-            "You must use --resume-from to provide a checkpoint file to thinnify"
-        distiller.contract_model(model, compression_scheduler.zeros_mask_dict, args.arch, args.dataset, optimizer=None)
-        apputils.save_checkpoint(0, args.arch, model, optimizer=None, scheduler=compression_scheduler,
-                                 name="{}_thinned".format(args.resumed_checkpoint_path.replace(".pth.tar", "")),
-                                 dir=msglogger.logdir)
-        msglogger.info("Note: if your model collapsed to random inference, you may want to fine-tune")
-        do_exit = True
+
     return do_exit
 
 
