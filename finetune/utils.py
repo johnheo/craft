@@ -197,19 +197,7 @@ def sparsity(tensor):
     return 1.0 - density(tensor)
 
 
-def sparsity_3D(tensor):
-    """Filter-wise sparsity for 4D tensors"""
-    if tensor.dim() != 4:
-        return 0
-    l1_norms = distiller.norms.filters_lp_norm(tensor, p=1, length_normalized=False)
-    num_nonzero_filters = len(torch.nonzero(l1_norms))
-    num_filters = tensor.size(0)
-    return 1 - num_nonzero_filters / num_filters
 
-
-def density_3D(tensor):
-    """Filter-wise density for 4D tensors"""
-    return 1 - sparsity_3D(tensor)
 
 
 def sparsity_2D(tensor):
@@ -249,18 +237,7 @@ def density_2D(tensor):
     return 1 - sparsity_2D(tensor)
 
 
-def non_zero_channels(tensor):
-    """Returns the indices of non-zero channels.
 
-    Non-zero channels are channels that have at least one coefficient that
-    is not zero.  Counting non-zero channels involves some tensor acrobatics.
-    """
-    if tensor.dim() != 4:
-        raise ValueError("Expecting a 4D tensor")
-
-    norms = distiller.norms.channels_lp_norm(tensor, p=1)
-    nonzero_channels = torch.nonzero(norms)
-    return nonzero_channels
 
 
 def sparsity_ch(tensor):
@@ -394,8 +371,7 @@ def model_params_stats(model, param_dims=[2, 4], param_types=['weight', 'bias'])
     return model_sparsity, params_cnt, params_nnz_cnt
 
 
-def norm_filters(weights, p=1):
-    return distiller.norms.filters_lp_norm(weights, p)
+
 
 
 def model_numel(model, param_dims=[2, 4], param_types=['weight', 'bias']):
