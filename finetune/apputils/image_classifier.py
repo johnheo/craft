@@ -113,13 +113,7 @@ class ClassifierCompressor(object):
             top1, top5, loss = train(self.train_loader, self.model, self.criterion, self.optimizer, 
                                      epoch, self.compression_scheduler, 
                                      loggers=[self.tflogger, self.pylogger], args=self.args)
-            if verbose:
-                distiller.log_weights_sparsity(self.model, epoch, [self.tflogger, self.pylogger])
-            distiller.log_activation_statistics(epoch, "train", loggers=[self.tflogger],
-                                                collector=collectors["sparsity"])
-            if self.args.masks_sparsity:
-                msglogger.info(distiller.masks_sparsity_tbl_summary(self.model, 
-                                                                    self.compression_scheduler))
+
         return top1, top5, loss
 
     def train_validate_with_scheduling(self, epoch, validate=True, verbose=True):
@@ -141,17 +135,6 @@ class ClassifierCompressor(object):
         with collectors_context(self.activations_collectors["valid"]) as collectors:
             top1, top5, vloss = validate(self.val_loader, self.model, self.criterion, 
                                          [self.pylogger], self.args, epoch)
-            distiller.log_activation_statistics(epoch, "valid", loggers=[self.tflogger],
-                                                collector=collectors["sparsity"])
-            save_collectors_data(collectors, msglogger.logdir)
-
-        if verbose:
-            stats = ('Performance/Validation/',
-            OrderedDict([('Loss', vloss),
-                         ('Top1', top1),
-                         ('Top5', top5)]))
-            distiller.log_training_progress(stats, None, epoch, steps_completed=0,
-                                            total_steps=1, log_freq=1, loggers=[self.tflogger])
         return top1, top5, vloss
 
     def _finalize_epoch(self, epoch, top1, top5):
@@ -422,49 +405,7 @@ def _init_learner(args):
     return model, compression_scheduler, optimizer, start_epoch, args.epochs
 
 
-def create_activation_stats_collectors(model, *phases):
-    """Create objects that collect activation statistics.
 
-    This is a utility function that creates two collectors:
-    1. Fine-grade sparsity levels of the activations
-    2. L1-magnitude of each of the activation channels
-
-    Args:
-        model - the model on which we want to collect statistics
-        phases - the statistics collection phases: train, valid, and/or test
-
-    WARNING! Enabling activation statsitics collection will significantly slow down training!
-    """
-    class missingdict(dict):
-        """This is a little trick to prevent KeyError"""
-        def __missing__(self, key):
-            return None  # note, does *not* set self[key] - we don't want defaultdict's behavior
-
-    genCollectors = lambda: missingdict({
-        "sparsity_ofm":      SummaryActivationStatsCollector(model, "sparsity_ofm",
-            lambda t: 100 * distiller.utils.sparsity(t)),
-        "l1_channels":   SummaryActivationStatsCollector(model, "l1_channels",
-                                                         distiller.utils.activation_channels_l1),
-        "apoz_channels": SummaryActivationStatsCollector(model, "apoz_channels",
-                                                         distiller.utils.activation_channels_apoz),
-        "mean_channels": SummaryActivationStatsCollector(model, "mean_channels",
-                                                         distiller.utils.activation_channels_means),
-        "records":       RecordsActivationStatsCollector(model, classes=[torch.nn.Conv2d])
-    })
-
-    return {k: (genCollectors() if k in phases else missingdict())
-            for k in ('train', 'valid', 'test')}
-
-
-def save_collectors_data(collectors, directory):
-    """Utility function that saves all activation statistics to disk.
-
-    File type and format of contents are collector-specific.
-    """
-    for name, collector in collectors.items():
-        msglogger.info('Saving data for collector {}...'.format(name))
-        file_path = collector.save(os.path.join(directory, name))
-        msglogger.info("Saved to {}".format(file_path))
 
 
 def load_data(args, fixed_subset=False, sequential=False, load_train=True, load_val=True, load_test=True):
@@ -490,9 +431,6 @@ def load_data(args, fixed_subset=False, sequential=False, load_train=True, load_
         loaders = loaders[0]
     return loaders
 
-
-def early_exit_mode(args):
-    return hasattr(args, 'earlyexit_lossweights') and args.earlyexit_lossweights
 
 
 def train(train_loader, model, criterion, optimizer, epoch,
@@ -548,10 +486,7 @@ def train(train_loader, model, criterion, optimizer, epoch,
 
     # For Early Exit, we define statistics for each exit, so
     # `exiterrors` is analogous to `classerr` in the non-Early Exit case
-    if early_exit_mode(args):
-        args.exiterrors = []
-        for exitnum in range(args.num_exits):
-            args.exiterrors.append(tnt.ClassErrorMeter(accuracy=True, topk=(1, 5)))
+
 
     total_samples = len(train_loader.sampler)
     batch_size = train_loader.batch_size
@@ -588,10 +523,7 @@ def train(train_loader, model, criterion, optimizer, epoch,
             else:
                 classerr.add(output.detach(), target)
             acc_stats.append([classerr.value(1), classerr.value(5)])
-        else:
-            # Measure accuracy and record loss
-            classerr.add(output[args.num_exits-1].detach(), target) # add the last exit (original exit)
-            loss = earlyexit_loss(output, target, criterion, args)
+
         # Record loss
         losses[OBJECTIVE_LOSS_KEY].add(loss.item())
 
@@ -651,14 +583,9 @@ def test(test_loader, model, criterion, loggers=None, activations_collectors=Non
 
     with collectors_context(activations_collectors["test"]) as collectors:
         top1, top5, lossses = _validate(test_loader, model, criterion, loggers, args)
-        distiller.log_activation_statistics(-1, "test", loggers, collector=collectors['sparsity'])
-        save_collectors_data(collectors, msglogger.logdir)
+
     return top1, top5, lossses
 
-
-# Temporary patch until we refactor early-exit handling
-def _is_earlyexit(args):
-    return hasattr(args, 'earlyexit_thresholds') and args.earlyexit_thresholds
 
 
 def _validate(data_loader, model, criterion, loggers, args, epoch=-1):
@@ -850,16 +777,7 @@ def evaluate_model(test_loader, model, criterion, loggers, activations_collector
                                        scheduler=scheduler, save_flag=True)
 
 
-def acts_histogram_collection(model, criterion, loggers, args):
-    msglogger.info('Collecting activation histograms based on {:.1%} of test dataset'
-                   .format(args.activation_histograms))
-    model = distiller.utils.make_non_parallel_copy(model)
-    args.effective_test_size = args.activation_histograms
-    test_loader = load_data(args, fixed_subset=True, load_train=False, load_val=False)
-    test_fn = partial(test, test_loader=test_loader, criterion=criterion,
-                      loggers=loggers, args=args, activations_collectors=None)
-    collect_histograms(model, test_fn, save_dir=msglogger.logdir,
-                       classes=None, nbins=2048, save_hist_imgs=True)
+
 
 
 def _log_best_scores(performance_tracker, logger, how_many=-1):
