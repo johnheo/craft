@@ -34,9 +34,9 @@ import argparse
 import distiller
 import distiller.apputils as apputils
 from distiller.data_loggers import *
-import distiller.models as models
-from distiller.models import create_model
-from distiller.utils import float_range_argparse_checker as float_range
+import models as models
+from models import create_model
+from utils import float_range_argparse_checker as float_range
 
 # Logger handle
 msglogger = logging.getLogger()
