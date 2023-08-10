@@ -27,11 +27,11 @@ import logging
 from numbers import Number
 from tabulate import tabulate
 import torch
-import distiller
+
 import models as models
 from utils import normalize_module_name
 msglogger = logging.getLogger()
-
+import scheduler as scheduler
 
 def save_checkpoint(epoch, arch, model, optimizer=None, scheduler=None,
                     extras=None, is_best=False, name=None, dir='.'):
@@ -199,7 +199,7 @@ def load_checkpoint(model, chkpt_file, optimizer=None,
     compression_scheduler = None
     normalize_dataparallel_keys = False
     if 'compression_sched' in checkpoint:
-        compression_scheduler = distiller.CompressionScheduler(model)
+        compression_scheduler = scheduler.CompressionScheduler(model)
         normalize_dataparallel_keys = _load_compression_scheduler()
     else:
         msglogger.info("Warning: compression schedule data does not exist in the checkpoint")
