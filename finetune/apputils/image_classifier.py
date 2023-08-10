@@ -32,8 +32,8 @@ import parser
 from functools import partial
 import argparse
 import distiller
-import distiller.apputils as apputils
-from distiller.data_loggers import *
+import apputils as apputils
+from data_loggers import *
 import models as models
 from models import create_model
 from utils import float_range_argparse_checker as float_range
@@ -90,9 +90,9 @@ class ClassifierCompressor(object):
     def _infer_implicit_args(args):
         # Infer the dataset from the model name
         if not hasattr(args, 'dataset'):
-            args.dataset = distiller.apputils.classification_dataset_str_from_arch(args.arch)
+            args.dataset = apputils.classification_dataset_str_from_arch(args.arch)
         if not hasattr(args, "num_classes"):
-            args.num_classes = distiller.apputils.classification_num_classes(args.dataset)
+            args.num_classes = apputils.classification_num_classes(args.dataset)
         return args
 
     @staticmethod
@@ -308,7 +308,7 @@ def _init_logger(args, script_dir):
     apputils.log_execution_env_state(
         filter(None, [args.compress, args.qe_stats_file]),  # remove both None and empty strings
         msglogger.logdir)
-    msglogger.debug("Distiller: %s", distiller.__version__)
+#    msglogger.debug("Distiller: %s", distiller.__version__)
     return msglogger.logdir
 
 
@@ -324,9 +324,9 @@ def _config_determinism(args):
             args.seed = np.random.randint(1, 100000)
 
     if args.deterministic:
-        distiller.set_deterministic(args.seed) # For experiment reproducability
+        utils.set_deterministic(args.seed) # For experiment reproducability
     else:
-        distiller.set_seed(args.seed)
+        utils.set_seed(args.seed)
         # Turn on CUDNN benchmark mode for best performance. This is usually "safe" for image
         # classification models, as the input sizes don't change during the run
         # See here: https://discuss.pytorch.org/t/what-does-torch-backends-cudnn-benchmark-do/5936/3
