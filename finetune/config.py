@@ -40,8 +40,8 @@ from torch.optim.lr_scheduler import *
 import distiller
 import utils as utils
 
-from distiller.regularization import *
-from distiller.learning_rate import *
+
+from learning_rate import *
 
 from utils import filter_kwargs
 
@@ -68,17 +68,10 @@ def dict_config(model, optimizer, sched_dict, scheduler=None, resumed_epoch=None
             policy = None
 
 
-            elif 'regularizer' in policy_def:
-                instance_name, args = __policy_params(policy_def, 'regularizer')
-                assert instance_name in regularizers, "Regularizer {} was not defined in the list of regularizers".format(instance_name)
-                regularizer = regularizers[instance_name]
-                if args is None:
-                    policy = distiller.RegularizationPolicy(regularizer)
-                else:
-                    policy = distiller.RegularizationPolicy(regularizer, **args)
 
 
-            elif 'lr_scheduler' in policy_def:
+
+            if 'lr_scheduler' in policy_def:
                 # LR schedulers take an optimizer in their constructor, so postpone handling until we're certain
                 # a quantization policy was initialized (if exists)
                 lr_policies.append(policy_def)
