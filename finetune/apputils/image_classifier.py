@@ -37,7 +37,8 @@ from data_loggers import *
 import models as models
 from models import create_model
 from utils import float_range_argparse_checker as float_range
-
+import configs as configs
+import scheduler as scheduler
 # Logger handle
 msglogger = logging.getLogger()
 
@@ -391,12 +392,12 @@ def _init_learner(args):
     if args.compress:
         # The main use-case for this sample application is CNN compression. Compression
         # requires a compression schedule configuration file in YAML.
-        compression_scheduler = distiller.file_config(model, optimizer, args.compress, compression_scheduler,
+        compression_scheduler = configs.file_config(model, optimizer, args.compress, compression_scheduler,
             (start_epoch-1) if args.resumed_checkpoint_path else None)
         # Model is re-transferred to GPU in case parameters were added (e.g. PACTQuantizer)
         model.to(args.device)
     elif compression_scheduler is None:
-        compression_scheduler = distiller.CompressionScheduler(model)
+        compression_scheduler = scheduler.CompressionScheduler(model)
 
     return model, compression_scheduler, optimizer, start_epoch, args.epochs
 
