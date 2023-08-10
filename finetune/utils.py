@@ -32,7 +32,7 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import yaml
 import inspect
-import distiller
+import apputils as apputils
 
 msglogger = logging.getLogger()
 
@@ -544,7 +544,7 @@ def has_children(module):
 def _validate_input_shape(dataset, input_shape):
     if dataset:
         try:
-            return tuple(distiller.apputils.classification_get_input_shape(dataset))
+            return tuple(apputils.classification_get_input_shape(dataset))
         except ValueError:
             raise ValueError("Can't infer input shape for dataset {}, please pass shape directly".format(dataset))
     else:
