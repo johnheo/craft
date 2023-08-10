@@ -54,7 +54,6 @@ models, or with the provided sample models:
 import traceback
 import logging
 from functools import partial
-import distiller
 from models import create_model
 import apputils.image_classifier as classifier
 import apputils as apputils
@@ -123,23 +122,7 @@ class ClassifierCompressorSampleApp(classifier.ClassifierCompressor):
                               self.compression_scheduler, self.pylogger, self.args)
 
 
-def sensitivity_analysis(model, criterion, data_loader, loggers, args, sparsities):
-    # This sample application can be invoked to execute Sensitivity Analysis on your
-    # model.  The ouptut is saved to CSV and PNG.
-    msglogger.info("Running sensitivity tests")
-    if not isinstance(loggers, list):
-        loggers = [loggers]
-    test_fnc = partial(classifier.test, test_loader=data_loader, criterion=criterion,
-                       loggers=loggers, args=args,
-                       activations_collectors=classifier.create_activation_stats_collectors(model))
-    which_params = [param_name for param_name, _ in model.named_parameters()]
-    sensitivity = distiller.perform_sensitivity_analysis(model,
-                                                         net_params=which_params,
-                                                         sparsities=sparsities,
-                                                         test_func=test_fnc,
-                                                         group=args.sensitivity)
-    distiller.sensitivities_to_png(sensitivity, os.path.join(msglogger.logdir, 'sensitivity.png'))
-    distiller.sensitivities_to_csv(sensitivity, os.path.join(msglogger.logdir, 'sensitivity.csv'))
+
 
 
 
