@@ -28,7 +28,7 @@ from numbers import Number
 from tabulate import tabulate
 import torch
 import distiller
-from distiller.utils import normalize_module_name
+from utils import normalize_module_name
 msglogger = logging.getLogger()
 
 
@@ -134,16 +134,7 @@ def load_checkpoint(model, chkpt_file, optimizer=None,
             checkpoint_epoch))
         return normalize_keys
 
-    def _load_and_execute_thinning_recipes():
-        msglogger.info("Loaded a thinning recipe from the checkpoint")
-        # Cache the recipes in case we need them later
-        model.thinning_recipes = checkpoint['thinning_recipes']
-        if normalize_dataparallel_keys:
-            model.thinning_recipes = [distiller.get_normalized_recipe(recipe)
-                                      for recipe in model.thinning_recipes]
-        distiller.execute_thinning_recipes_list(model,
-                                                compression_scheduler.zeros_mask_dict,
-                                                model.thinning_recipes)
+
 
     def _load_optimizer():
         """Initialize optimizer with model parameters and load src_state_dict"""
@@ -169,7 +160,7 @@ def load_checkpoint(model, chkpt_file, optimizer=None,
 
     def _create_model_from_ckpt():
         try:
-            return distiller.models.create_model(False, checkpoint['dataset'], checkpoint['arch'],
+            return models.create_model(False, checkpoint['dataset'], checkpoint['arch'],
                                                  checkpoint['is_parallel'], device_ids=None)
         except KeyError:
             return None
@@ -212,21 +203,9 @@ def load_checkpoint(model, chkpt_file, optimizer=None,
     else:
         msglogger.info("Warning: compression schedule data does not exist in the checkpoint")
 
-    if 'thinning_recipes' in checkpoint:
-        if not compression_scheduler:
-            msglogger.warning("Found thinning_recipes key, but missing key compression_scheduler")
-            compression_scheduler = distiller.CompressionScheduler(model)
-        _load_and_execute_thinning_recipes()
 
-    if 'quantizer_metadata' in checkpoint:
-        msglogger.info('Loaded quantizer metadata from the checkpoint')
-        qmd = checkpoint['quantizer_metadata']
-        quantizer = qmd['type'](model, **qmd['params'])
-        quantizer.prepare_model(qmd['dummy_input'])
 
-        if qmd.get('pytorch_convert', False):
-            msglogger.info('Converting Distiller PTQ model to PyTorch quantization API')
-            model = quantizer.convert_to_pytorch(qmd['dummy_input'], backend=qmd.get('pytorch_convert_backend', None))
+
 
     if normalize_dataparallel_keys:
         checkpoint['state_dict'] = {normalize_module_name(k): v for k, v in checkpoint['state_dict'].items()}
