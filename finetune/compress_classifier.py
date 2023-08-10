@@ -55,9 +55,9 @@ import traceback
 import logging
 from functools import partial
 import distiller
-from distiller.models import create_model
+from models import create_model
 import apputils.image_classifier as classifier
-import distiller.apputils as apputils
+import apputils as apputils
 import parser
 import os
 import numpy as np
@@ -91,7 +91,7 @@ def handle_subapps(model, criterion, optimizer, compression_scheduler, pylogger,
 
     elif args.evaluate:
         if args.quantize_eval and args.qe_lapq:
-            image_classifier_ptq_lapq(model, criterion, pylogger, args)
+            pass
         else:
             test_loader = load_test_data(args)
             classifier.evaluate_model(test_loader, model, criterion, pylogger,
