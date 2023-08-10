@@ -61,7 +61,7 @@ import apputils as apputils
 import parser
 import os
 import numpy as np
-from ptq_lapq import image_classifier_ptq_lapq
+
 
 
 # Logger handle
@@ -74,7 +74,6 @@ def main():
     app = ClassifierCompressorSampleApp(args, script_dir=os.path.dirname(__file__))
     if app.handle_subapps():
         return
-    init_knowledge_distillation(app.args, app.model, app.compression_scheduler)
     app.run_training_loop()
     # Finally run results on the test set
     return app.test()
@@ -102,38 +101,16 @@ def handle_subapps(model, criterion, optimizer, compression_scheduler, pylogger,
     return do_exit
 
 
-def init_knowledge_distillation(args, model, compression_scheduler):
-    args.kd_policy = None
-    if args.kd_teacher:
-        teacher = create_model(args.kd_pretrained, args.dataset, args.kd_teacher, device_ids=args.gpus)
-        if args.kd_resume:
-            teacher = apputils.load_lean_checkpoint(teacher, args.kd_resume)
-        dlw = distiller.DistillationLossWeights(args.kd_distill_wt, args.kd_student_wt, args.kd_teacher_wt)
-        args.kd_policy = distiller.KnowledgeDistillationPolicy(model, teacher, args.kd_temp, dlw)
-        compression_scheduler.add_policy(args.kd_policy, starting_epoch=args.kd_start_epoch, ending_epoch=args.epochs,
-                                         frequency=1)
-        msglogger.info('\nStudent-Teacher knowledge distillation enabled:')
-        msglogger.info('\tTeacher Model: %s', args.kd_teacher)
-        msglogger.info('\tTemperature: %s', args.kd_temp)
-        msglogger.info('\tLoss Weights (distillation | student | teacher): %s',
-                       ' | '.join(['{:.2f}'.format(val) for val in dlw]))
-        msglogger.info('\tStarting from Epoch: %s', args.kd_start_epoch)
 
 
-def early_exit_init(args):
-    if not args.earlyexit_thresholds:
-        return
-    args.num_exits = len(args.earlyexit_thresholds) + 1
-    args.loss_exits = [0] * args.num_exits
-    args.losses_exits = []
-    args.exiterrors = []
-    msglogger.info('=> using early-exit threshold values of %s', args.earlyexit_thresholds)
+
+
 
 
 class ClassifierCompressorSampleApp(classifier.ClassifierCompressor):
     def __init__(self, args, script_dir):
         super().__init__(args, script_dir)
-        early_exit_init(self.args)
+
         # Save the randomly-initialized model before training (useful for lottery-ticket method)
         if args.save_untrained_model:
             ckpt_name = '_'.join((self.args.name or "", "untrained"))
@@ -165,17 +142,6 @@ def sensitivity_analysis(model, criterion, data_loader, loggers, args, sparsitie
     distiller.sensitivities_to_csv(sensitivity, os.path.join(msglogger.logdir, 'sensitivity.csv'))
 
 
-def greedy(model, criterion, optimizer, loggers, args):
-    train_loader, val_loader, test_loader = classifier.load_data(args)
-
-    test_fn = partial(classifier.test, test_loader=test_loader, criterion=criterion,
-                      loggers=loggers, args=args, activations_collectors=None)
-    train_fn = partial(classifier.train, train_loader=train_loader, criterion=criterion, args=args)
-    assert args.greedy_target_density is not None
-    distiller.pruning.greedy_filter_pruning.greedy_pruner(model, args,
-                                                          args.greedy_target_density,
-                                                          args.greedy_pruning_step,
-                                                          test_fn, train_fn)
 
 
 if __name__ == '__main__':
