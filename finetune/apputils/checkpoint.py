@@ -28,6 +28,7 @@ from numbers import Number
 from tabulate import tabulate
 import torch
 import distiller
+import models as models
 from utils import normalize_module_name
 msglogger = logging.getLogger()
 
