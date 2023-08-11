@@ -29,7 +29,7 @@ from tabulate import tabulate
 import torch
 
 import models as models
-from utils import normalize_module_name
+from utils import *
 msglogger = logging.getLogger()
 import scheduler as scheduler
 
