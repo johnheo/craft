@@ -17,7 +17,7 @@
 import contextlib
 from functools import partial, reduce
 import operator
-import xlsxwriter
+#import xlsxwriter
 import enum
 import yaml
 import os
