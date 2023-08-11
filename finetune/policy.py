@@ -27,7 +27,7 @@ import torch.optim.lr_scheduler
 from collections import namedtuple, OrderedDict
 import logging
 
-from utils import param_name_2_module_name
+from utils import *
 
 __all__ = ['PruningPolicy', 'RegularizationPolicy', 'QuantizationPolicy', 'LRPolicy', 'ScheduledTrainingPolicy',
            'PolicyLoss', 'LossComponent']
