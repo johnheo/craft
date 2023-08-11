@@ -1,0 +1,150 @@
+#
+version: 1
+#
+#regularizers:
+#    my_l2_regularizer:
+#        class: TrueL2Regularizer
+#        reg_regims:
+#             'layers.layer1.layer.weight': [0.03, N/A]
+#             'layers.layer2.layer.model.conv1.weight': [0.03, N/A]
+#             'layers.layer2.layer.model.conv2.weight': [0.03, N/A]
+#             'layers.layer3.layer.model.conv1.weight': [0.03, N/A]
+#             'layers.layer3.layer.model.conv2.weight': [0.03, N/A]
+#             'layers.layer4.layer.model.conv1.weight': [0.03, N/A]
+#             'layers.layer4.layer.model.conv2.weight': [0.03, N/A]
+#             'layers.layer5.layer.model.conv1.weight': [0.03, N/A]
+#             'layers.layer5.layer.model.conv2.weight': [0.03, N/A]
+#             'layers.layer5.layer.model.skip_conv1.weight': [0.03, N/A]
+#             'layers.layer6.layer.model.conv1.weight': [0.03, N/A]
+#             'layers.layer6.layer.model.conv2.weight': [0.03, N/A]
+#             'layers.layer7.layer.model.conv1.weight': [0.03, N/A]
+#             'layers.layer7.layer.model.conv2.weight': [0.03, N/A]
+#             'layers.layer8.layer.model.conv1.weight': [0.03, N/A]
+#             'layers.layer8.layer.model.conv2.weight': [0.03, N/A]
+#             'layers.layer8.layer.model.skip_conv1.weight': [0.03, N/A]
+#             'layers.layer9.layer.model.conv1.weight': [0.03, N/A]
+#             'layers.layer9.layer.model.conv2.weight': [0.03, N/A]
+#             'layers.layer10.layer.model.conv1.weight': [0.03, N/A]
+#             'layers.layer10.layer.model.conv2.weight': [0.03, N/A]
+#             'layers.layer13.layer.weight': [0.03, N/A]
+
+#
+#version: 1
+#regularizers:
+#  my_l2_regularizer:
+#    class: TrueL2Regularizer
+#    reg_regims:
+#      module.layers.layer1.layer.weight:
+#      - 0.03
+#      - N/A
+#      module.layers.layer2.layer.weight:
+#      - 0.03
+#      - N/A
+#      module.layers.layer2.act.alpha:
+#      - 0.3
+#      - N/A
+#      module.layers.layer4.layer.weight:
+#      - 0.03
+#      - N/A
+#      module.layers.layer4.act.alpha:
+#      - 0.3
+#      - N/A
+#      module.layers.layer5.layer.weight:
+#      - 0.03
+#      - N/A
+#      module.layers.layer5.act.alpha:
+#      - 0.3
+#      - N/A
+#      module.layers.layer7.layer.weight:
+#      - 0.03
+#      - N/A
+#      module.layers.layer7.act.alpha:
+#      - 0.3
+#      - N/A
+#      module.layers.layer8.layer.weight:
+#      - 0.03
+#      - N/A
+#      module.layers.layer8.act.alpha:
+#      - 0.3
+#      - N/A
+#      module.layers.layer9.layer.weight:
+#      - 0.03
+#      - N/A
+#      module.layers.layer9.act.alpha:
+#      - 0.3
+#      - N/A
+#      module.layers.layer11.layer.weight:
+#      - 0.03
+#      - N/A
+#      module.layers.layer11.act.alpha:
+#      - 0.3
+#      - N/A
+#      module.layers.layer12.layer.weight:
+#      - 0.03
+#      - N/A
+#      module.layers.layer12.act.alpha:
+#      - 0.3
+#      - N/A
+#      module.layers.layer13.layer.weight:
+#      - 0.03
+#      - N/A
+#      module.layers.layer13.act.alpha:
+#      - 0.3
+#      - N/A
+#      module.layers.layer15.layer.weight:
+#      - 0.03
+#      - N/A
+#      module.layers.layer15.act.alpha:
+#      - 0.3
+#      - N/A
+#      module.layers.layer16.layer.weight:
+#      - 0.03
+#      - N/A
+#      module.layers.layer16.act.alpha:
+#      - 0.3
+#      - N/A
+#      module.layers.layer17.layer.weight:
+#      - 0.03
+#      - N/A
+#      module.layers.layer17.act.alpha:
+#      - 0.3
+#      - N/A
+#      module.layers.layer20.layer.weight:
+#      - 0.03
+#      - N/A
+#      module.layers.layer20.act.alpha:
+#      - 0.3
+#      - N/A
+#      module.layers.layer22.layer.weight:
+#      - 0.03
+#      - N/A
+#      module.layers.layer22.act.alpha:
+#      - 0.3
+#      - N/A
+#      module.layers.layer24.layer.weight:
+#      - 0.03
+#      - N/A
+#
+#
+
+
+
+
+lr_schedulers:
+   my_lr_decay:
+     class: CosineAnnealingLR
+     T_max: 10
+     eta_min: 0
+policies:
+#  - regularizer:
+#      instance_name: my_l2_regularizer
+#    starting_epoch: 0
+#    ending_epoch: 90
+#    frequency: 1
+
+  - lr_scheduler:
+      instance_name: my_lr_decay
+    starting_epoch: 0
+    ending_epoch: 10
+    frequency: 1
+
