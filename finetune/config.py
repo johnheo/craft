@@ -42,7 +42,7 @@ import utils as utils
 
 from learning_rate import *
 
-from utils import filter_kwargs
+from utils import *
 
 msglogger = logging.getLogger()
 app_cfg_logger = logging.getLogger("app_cfg")
