@@ -87,7 +87,7 @@ def handle_subapps(model, criterion, optimizer, compression_scheduler, pylogger,
 
 
 
-    elif args.evaluate:
+    if args.evaluate:
         if args.quantize_eval and args.qe_lapq:
             pass
         else:
