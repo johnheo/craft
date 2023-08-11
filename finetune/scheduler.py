@@ -22,8 +22,8 @@ import contextlib
 import logging
 import torch
 
-from .policy import PolicyLoss, LossComponent
-from .utils import model_device, normalize_module_name
+from .policy import *
+from .utils import *
 
 
 __all__ = ["CompressionScheduler", "ParameterMasker", "create_model_masks_dict"]
