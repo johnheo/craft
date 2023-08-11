@@ -73,8 +73,6 @@ class ClassifierCompressor(object):
         # Define loss function (criterion)
         self.criterion = nn.CrossEntropyLoss().to(self.args.device)
         self.train_loader, self.val_loader, self.test_loader = (None, None, None)
-        self.activations_collectors = create_activation_stats_collectors(
-            self.model, *self.args.activation_stats)
         self.performance_tracker = apputils.SparsityAccuracyTracker(self.args.num_best_scores)
     
     def load_datasets(self):
