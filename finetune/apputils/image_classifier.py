@@ -590,8 +590,8 @@ def test(test_loader, model, criterion, loggers=None, activations_collectors=Non
     if activations_collectors is None:
         activations_collectors = create_activation_stats_collectors(model, None)
 
-    with collectors_context(activations_collectors["test"]) as collectors:
-        top1, top5, lossses = _validate(test_loader, model, criterion, loggers, args)
+    
+    top1, top5, lossses = _validate(test_loader, model, criterion, loggers, args)
 
     return top1, top5, lossses
 
@@ -599,7 +599,7 @@ def test(test_loader, model, criterion, loggers=None, activations_collectors=Non
 
 def _validate(data_loader, model, criterion, loggers, args, epoch=-1):
     def _log_validation_progress():
-        if not _is_earlyexit(args):
+        if True:
             stats_dict = OrderedDict([('Loss', losses['objective_loss'].mean),
                                       ('Top1', classerr.value(1)),
                                       ('Top5', classerr.value(5))])
