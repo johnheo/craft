@@ -104,7 +104,7 @@ def create_model(pretrained, dataset, arch, process_group_params=None, parallel=
         elif dataset == 'stanfordcars':
                    model = _create_stanfordcars_model(arch, pretrained)
 
-        elif dataset == 'oxford-iiit':
+        elif dataset == 'oxfordpets':
 
                    model = _create_oxfordpets_model(arch, pretrained)
 
