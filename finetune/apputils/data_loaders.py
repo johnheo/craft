@@ -31,7 +31,7 @@ from torch.utils.data import Dataset
 import numpy as np
 import h5py
 import pandas as pd
-from autoaugment import CIFAR10Policy, Cutout
+
 
 
 
@@ -40,7 +40,7 @@ from autoaugment import CIFAR10Policy, Cutout
 DATASETS_NAMES = ['imagenet', 'cifar10', 'mnist', 
                   'jsc', 'tiny',
                   'cifar10contrastive', 
-                  'cifar10autoaugment', 'aircraft',
+                  'aircraft',
                   'cifar100', 'flowers102', 'stanfordcars', 'oxfordpets', 'food101'
                  ]
 
@@ -50,8 +50,6 @@ def classification_dataset_str_from_arch(arch):
         dataset = 'cifar100'
     elif 'cifar10contrastive' in arch:
         dataset = 'cifar10contrastive'
-    elif 'cifar10autoaugment' in arch:
-        dataset = 'cifar10autoaugment'
     elif 'cifar' in arch:
         dataset = 'cifar10'
     elif 'flowers102' in arch:
@@ -77,7 +75,6 @@ def classification_dataset_str_from_arch(arch):
 
 def classification_num_classes(dataset):
     return {'cifar10contrastive': 10,
-            'cifar10autoaugment': 10,
             'cifar10': 10,
             'cifar100': 100,
             'mnist': 10,
@@ -101,8 +98,6 @@ def classification_get_input_shape(dataset):
         return 1, 3, 224, 224
     elif dataset == 'food101':
         return 1, 3, 224, 224
-    elif dataset == 'cifar10autoaugment':
-        return 1, 3, 224, 224
     elif dataset == 'cifar100':
         return 1, 3, 32, 32
     elif dataset == 'mnist':
@@ -123,7 +118,6 @@ def classification_get_input_shape(dataset):
 
 def __dataset_factory(dataset):
     return {'cifar10contrastive': cifar10contrastive_get_datasets,
-            'cifar10autoaugment': cifar10autoaugment_get_datasets,
             'cifar10': cifar10_get_datasets,
             'cifar100': cifar100_get_datasets,
             'mnist': mnist_get_datasets,
@@ -309,30 +303,7 @@ def cifar10contrastive_get_datasets(data_dir):
     return train_dataset, test_dataset
 
 
-def cifar10autoaugment_get_datasets(data_dir):
-    train_transform = transforms.Compose([
-        transforms.Resize((224,224)),
-        #transforms.RandomCrop(32, padding=4),
-	transforms.RandomHorizontalFlip(),
-        CIFAR10Policy(),
-        transforms.ToTensor(),
-        #Cutout(n_holes=1, length=16),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    ])
 
-    train_dataset = datasets.CIFAR10(root=data_dir, train=True,
-                                     download=True, transform=train_transform)
-
-    test_transform = transforms.Compose([
-        transforms.Resize((224,224)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    ])
-
-    test_dataset = datasets.CIFAR10(root=data_dir, train=False,
-                                    download=True, transform=test_transform)
-
-    return train_dataset, test_dataset
 
 
 
