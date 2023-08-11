@@ -29,6 +29,7 @@ import torch.optim
 import torch.utils.data
 import torchnet.meter as tnt
 import parser
+import sam
 from functools import partial
 import argparse
 import utils as utils
@@ -202,6 +203,28 @@ def init_classifier_compression_arg_parser(include_ptq_lapq_args=False):
                         help='number of data loading workers (default: 4)')
     parser.add_argument('--epochs', type=int, metavar='N', default=90,
                         help='number of total epochs to run (default: 90')
+
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        default="SGD",
+        choices=["Adam", "SGD"],
+        help="Optimizer (default: Adam)",
+    )
+
+    parser.add_argument(
+        "--SAM",
+        action="store_true",
+        help="Whether to use sharpness-aware minimization",
+    )
+    parser.add_argument(
+        "--SAM-adaptive",
+        action="store_true",
+        help="Whether to use adaptive sharpness-aware minimization",
+    )
+    parser.add_argument(
+        "--SAM-rho", default=0.05, type=float, help="Rho parameter for SAM"
+    )
     parser.add_argument('-b', '--batch-size', default=256, type=int,
                         metavar='N', help='mini-batch size (default: 256)')
 
@@ -386,8 +409,25 @@ def _init_learner(args):
             msglogger.info('\nreset_optimizer flag set: Overriding resumed optimizer and resetting epoch count to 0')
 
     if optimizer is None and not args.evaluate:
-        optimizer = torch.optim.SGD(model.parameters(), lr=args.lr,
-                                    momentum=args.momentum, weight_decay=args.weight_decay)
+        if args.optimizer == "SGD":
+            if args.SAM:
+                optimizer = sam.SAM(
+                    model.parameters(),
+                    torch.optim.SGD,
+                    lr=args.lr,
+                    momentum=args.momentum,
+                    weight_decay=args.weight_decay,
+                    rho=args.SAM_rho,
+                    adaptive=args.SAM_adaptive,
+                )
+                
+            else:
+                optimizer = torch.optim.SGD(
+                    model.parameters(),
+                    lr=args.lr,
+                    momentum=args.momentum,
+                    weight_decay=args.weight_decay,
+                )
         msglogger.debug('Optimizer Type: %s', type(optimizer))
         msglogger.debug('Optimizer Args: %s', optimizer.defaults)
 
