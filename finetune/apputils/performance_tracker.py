@@ -17,7 +17,7 @@
 """Performance trackers used to track the best performing epochs when training.
 """
 import operator
-import distiller
+from utils import *
 
 
 __all__ = ["TrainingPerformanceTracker",
