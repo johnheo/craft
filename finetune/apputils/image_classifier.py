@@ -658,21 +658,14 @@ def _validate(data_loader, model, criterion, loggers, args, epoch=-1):
                     stats_dict[t1] = args.exiterrors[exitnum].value(1)
                     stats_dict[t5] = args.exiterrors[exitnum].value(5)
         stats = ('Performance/Validation/', stats_dict)
-        distiller.log_training_progress(stats, None, epoch, steps_completed,
+        log_training_progress(stats, None, epoch, steps_completed,
                                         total_steps, args.print_freq, loggers)
 
     """Execute the validation/test loop."""
     losses = {'objective_loss': tnt.AverageValueMeter()}
     classerr = tnt.ClassErrorMeter(accuracy=True, topk=(1, 5))
 
-    if _is_earlyexit(args):
-        # for Early Exit, we have a list of errors and losses for each of the exits.
-        args.exiterrors = []
-        args.losses_exits = []
-        for exitnum in range(args.num_exits):
-            args.exiterrors.append(tnt.ClassErrorMeter(accuracy=True, topk=(1, 5)))
-            args.losses_exits.append(tnt.AverageValueMeter())
-        args.exit_taken = [0] * args.num_exits
+
 
     batch_time = tnt.AverageValueMeter()
     total_samples = len(data_loader.sampler)
@@ -692,7 +685,7 @@ def _validate(data_loader, model, criterion, loggers, args, epoch=-1):
             # compute output from model
             output = model(inputs)
 
-            if not _is_earlyexit(args):
+            if True:
                 # compute loss
                 loss = criterion(output, target)
                 # measure accuracy and record loss
@@ -711,7 +704,7 @@ def _validate(data_loader, model, criterion, loggers, args, epoch=-1):
             if steps_completed % args.print_freq == 0:
                 _log_validation_progress()
 
-    if not _is_earlyexit(args):
+    if True:
         msglogger.info('==> Top1: %.3f    Top5: %.3f    Loss: %.3f\n',
                        classerr.value()[0], classerr.value()[1], losses['objective_loss'].mean)
 
