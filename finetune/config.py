@@ -44,6 +44,7 @@ from learning_rate import *
 
 from utils import *
 from scheduler import *
+from policy import *
 
 msglogger = logging.getLogger()
 app_cfg_logger = logging.getLogger("app_cfg")
@@ -96,7 +97,7 @@ def dict_config(model, optimizer, sched_dict, scheduler=None, resumed_epoch=None
             assert instance_name in lr_schedulers, "LR-scheduler {} was not defined in the list of lr-schedulers".format(
                 instance_name)
             lr_scheduler = lr_schedulers[instance_name]
-            policy = distiller.LRPolicy(lr_scheduler)
+            policy = LRPolicy(lr_scheduler)
             add_policy_to_scheduler(policy, policy_def, scheduler)
 
     except AssertionError:
