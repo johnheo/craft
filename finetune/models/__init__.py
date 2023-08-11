@@ -9,6 +9,7 @@ from . import oxfordiiit as oxfordpets_models
 from . import fgvcaircraft as aircraft_models
 from . import food101 as food101_models
 
+from utils import *
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torchvision
 import torch.nn as nn
@@ -56,6 +57,18 @@ ALL_MODEL_NAMES = sorted(map(lambda s: s.lower(),
                             set(FOOD101_MODEL_NAMES + AIRCRAFT_MODEL_NAMES+ OXFORD_PETS_MODEL_NAMES + STANFORDCARS_MODEL_NAMES + FLOWERS102_MODEL_NAMES + CIFAR10_MODEL_NAMES + CIFAR100_MODEL_NAMES)))
 
 
+def _set_model_input_shape_attr(model, arch, dataset, pretrained, cadene):
+    if cadene and pretrained:
+        # When using pre-trained weights, Cadene models already have an input size attribute
+        # We add the batch dimension to it
+        input_size = model.module.input_size if isinstance(model, torch.nn.DataParallel) else model.input_size
+        shape = tuple([1] + input_size)
+        set_model_input_shape_attr(model, input_shape=shape)
+    elif arch == 'inception_v3':
+        set_model_input_shape_attr(model, input_shape=(1, 3, 299, 299))
+    else:
+        set_model_input_shape_attr(model, dataset=dataset)
+      
 def create_model(pretrained, dataset, arch, process_group_params=None, parallel='DP', device_ids=None):
     """Create a pytorch model based on the model architecture and dataset
 
