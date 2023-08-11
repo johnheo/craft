@@ -16,7 +16,7 @@ import logging
 msglogger = logging.getLogger()
 
 
-SUPPORTED_DATASETS = ('cifar10', 'cifar100', 'flowers102', 'stanfordcars', 'oxford-iiit', 'fgvc-aircraft', 'food101')
+SUPPORTED_DATASETS = ('cifar10', 'cifar100', 'flowers102', 'stanfordcars', 'oxfordpets', 'fgvc-aircraft', 'food101')
 
 TORCHVISION_MODEL_NAMES = sorted(
                             name for name in torch_models.__dict__
