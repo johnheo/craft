@@ -31,7 +31,7 @@ import torchnet.meter as tnt
 import parser
 from functools import partial
 import argparse
-
+import utils as utils
 import apputils as apputils
 from data_loggers import *
 import models as models
@@ -306,9 +306,9 @@ def _init_logger(args, script_dir):
 
     # Log various details about the execution environment.  It is sometimes useful
     # to refer to past experiment executions and this information may be useful.
-    apputils.log_execution_env_state(
-        filter(None, [args.compress, args.qe_stats_file]),  # remove both None and empty strings
-        msglogger.logdir)
+#    apputils.log_execution_env_state(
+#        filter(None, [args.compress, args.qe_stats_file]),  # remove both None and empty strings
+#        msglogger.logdir)
 #    msglogger.debug("Distiller: %s", distiller.__version__)
     return msglogger.logdir
 
