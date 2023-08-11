@@ -216,6 +216,9 @@ def init_classifier_compression_arg_parser(include_ptq_lapq_args=False):
 
     parser.add_argument('--print-freq', '-p', default=10, type=int,
                         metavar='N', help='print frequency (default: 10)')
+    parser.add_argument(
+        "--dataset", default="", metavar="dataset", help="name of the dataset"
+    )
     parser.add_argument('--verbose', '-v', action='store_true', help='Emit debug log messages')
 
     load_checkpoint_group = parser.add_argument_group('Resuming arguments')
