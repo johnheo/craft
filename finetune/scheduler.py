@@ -21,7 +21,7 @@ This implements the scheduling of the compression policies.
 import contextlib
 import logging
 import torch
-from .quantization.quantizer import FP_BKP_PREFIX
+
 from .policy import PolicyLoss, LossComponent
 from .utils import model_device, normalize_module_name
 
