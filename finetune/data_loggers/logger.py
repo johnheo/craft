@@ -81,7 +81,7 @@ class PythonLogger(DataLogger):
             log = 'Test: [{:5d}/{:5d}]    '.format(completed, int(total))
         for name, val in stats_dict.items():
             if isinstance(val, int):
-                log = log + '{name} {val}    '.format(name=name, val=.pretty_int(val))
+                log = log + '{name} {val}    '.format(name=name, val=pretty_int(val))
             else:
                 log = log + '{name} {val:.6f}    '.format(name=name, val=val)
         self.pylogger.info(log)
