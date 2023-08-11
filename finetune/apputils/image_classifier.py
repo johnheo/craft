@@ -37,7 +37,7 @@ from data_loggers import *
 import models as models
 from models import create_model
 from utils import float_range_argparse_checker as float_range
-import configs as configs
+import config as configs
 import scheduler as scheduler
 # Logger handle
 msglogger = logging.getLogger()
