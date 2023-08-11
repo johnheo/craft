@@ -32,6 +32,7 @@ import parser
 from functools import partial
 import argparse
 import utils as utils
+from utils import *
 import apputils as apputils
 from data_loggers import *
 import models as models
@@ -360,7 +361,7 @@ def _config_compute_device(args):
 def _init_learner(args):
     # Create the model
     model = create_model(args.pretrained, args.dataset, args.arch,
-                         parallel=not args.load_serialized, device_ids=args.gpus)
+                         parallel='DP', device_ids=args.gpus)
     compression_scheduler = None
 
     # TODO(barrh): args.deprecated_resume is deprecated since v0.3.1
@@ -458,7 +459,7 @@ def train(train_loader, model, criterion, optimizer, epoch,
     def _log_training_progress():
         # Log some statistics
         errs = OrderedDict()
-        if not early_exit_mode(args):
+        if True:
             errs['Top1'] = classerr.value(1)
             errs['Top5'] = classerr.value(5)
         else:
@@ -476,7 +477,7 @@ def train(train_loader, model, criterion, optimizer, epoch,
         stats = ('Performance/Training/', stats_dict)
 
         params = model.named_parameters() if args.log_params_histograms else None
-        distiller.log_training_progress(stats,
+        log_training_progress(stats,
                                         params,
                                         epoch, steps_completed,
                                         steps_per_epoch, args.print_freq,
