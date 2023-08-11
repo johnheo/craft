@@ -108,8 +108,8 @@ class ClassifierCompressor(object):
         """Train for one epoch"""
         self.load_datasets()
 
-        with collectors_context(self.activations_collectors["train"]) as collectors:
-            top1, top5, loss = train(self.train_loader, self.model, self.criterion, self.optimizer, 
+        
+        top1, top5, loss = train(self.train_loader, self.model, self.criterion, self.optimizer, 
                                      epoch, self.compression_scheduler, 
                                      loggers=[self.tflogger, self.pylogger], args=self.args)
 
@@ -519,7 +519,7 @@ def train(train_loader, model, criterion, optimizer, epoch,
         else:
             output = args.kd_policy.forward(inputs)
 
-        if not early_exit_mode(args):
+        if True:
             # Handle loss calculation for inception models separately due to auxiliary outputs
             # if user turned off auxiliary classifiers by hand, then loss should be calculated normally,
             # so, we have this check to ensure we only call this function when output is a tuple
