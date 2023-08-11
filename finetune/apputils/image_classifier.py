@@ -133,8 +133,8 @@ class ClassifierCompressor(object):
     def validate_one_epoch(self, epoch, verbose=True):
         """Evaluate on validation set"""
         self.load_datasets()
-        with collectors_context(self.activations_collectors["valid"]) as collectors:
-            top1, top5, vloss = validate(self.val_loader, self.model, self.criterion, 
+        
+        top1, top5, vloss = validate(self.val_loader, self.model, self.criterion, 
                                          [self.pylogger], self.args, epoch)
         return top1, top5, vloss
 
@@ -385,6 +385,7 @@ def _init_learner(args):
     # Create the model
     model = create_model(args.pretrained, args.dataset, args.arch,
                          parallel='DP', device_ids=args.gpus)
+    print(model)
     compression_scheduler = None
 
     # TODO(barrh): args.deprecated_resume is deprecated since v0.3.1
