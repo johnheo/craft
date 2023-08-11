@@ -43,6 +43,7 @@ import utils as utils
 from learning_rate import *
 
 from utils import *
+from scheduler import *
 
 msglogger = logging.getLogger()
 app_cfg_logger = logging.getLogger("app_cfg")
@@ -52,7 +53,7 @@ def dict_config(model, optimizer, sched_dict, scheduler=None, resumed_epoch=None
     app_cfg_logger.debug('Schedule contents:\n' + json.dumps(sched_dict, indent=2))
 
     if scheduler is None:
-        scheduler = distiller.CompressionScheduler(model)
+        scheduler = CompressionScheduler(model)
 
     pruners = __factory('pruners', model, sched_dict)
     regularizers = __factory('regularizers', model, sched_dict)
