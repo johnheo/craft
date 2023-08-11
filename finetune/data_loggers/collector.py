@@ -38,8 +38,7 @@ import concurrent.futures
 
 msglogger = logging.getLogger()
 
-__all__ = ['SummaryActivationStatsCollector', 'RecordsActivationStatsCollector', 'QuantCalibrationStatsCollector',
-           'ActivationHistogramsCollector', 'RawActivationsCollector', 'CollectorDirection',
+__all__ = ['CollectorDirection',
            'collect_quant_stats', 'collect_histograms', 'collect_raw_outputs',
            'collector_context', 'collectors_context']
 
