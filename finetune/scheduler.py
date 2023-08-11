@@ -22,8 +22,8 @@ import contextlib
 import logging
 import torch
 
-from .policy import *
-from .utils import *
+from policy import *
+from utils import *
 
 
 
