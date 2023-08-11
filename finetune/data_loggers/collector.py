@@ -79,92 +79,6 @@ class WeightedAverageValueMeter(AverageValueMeter):
         self.n += n
 
 
-class SummaryActivationStatsCollector(ActivationStatsCollector):
-    """This class collects activations statistical summaries.
-
-    This Collector computes the mean of some statistic of the activation.  It is rather
-    light-weight and quicker than collecting a record per activation.
-    The statistic function is configured in the constructor.
-
-    collector_direction - enum type: IN for IFMs, OUT for OFM
-    inputs_consolidate_func is called on tuple of tensors, and returns a tensor.
-    """
-    def __init__(self, model, stat_name, summary_fn,
-                 classes=(torch.nn.ReLU, torch.nn.ReLU6, torch.nn.LeakyReLU),
-                 collector_direction=CollectorDirection.OUT,
-                 inputs_consolidate_func=torch.cat):
-        super(SummaryActivationStatsCollector, self).__init__(model, stat_name, classes)
-        self.summary_fn = summary_fn
-        self.collector_direction = collector_direction
-        self.inputs_func = inputs_consolidate_func
-
-    def _activation_stats_cb(self, module, inputs, output):
-        """Record the activation sparsity of 'module'
-
-        This is a callback from the forward() of 'module'.
-        """
-        feature_map = output if self.collector_direction == CollectorDirection.OUT else self.inputs_func(inputs)
-        try:
-            getattr(module, self.stat_name).add(self.summary_fn(feature_map.data), feature_map.data.numel())
-        except RuntimeError as e:
-            if "The expanded size of the tensor" in e.args[0]:
-                raise ValueError("ActivationStatsCollector: a module ({} - {}) was encountered twice during model.apply().\n"
-                                 "This is an indication that your model is using the same module instance, "
-                                 "in multiple nodes in the graph.  This usually occurs with ReLU modules: \n"
-                                 "For example in TorchVision's ResNet model, self.relu = nn.ReLU(inplace=True) is "
-                                 "instantiated once, but used multiple times.  This is not permissible when using "
-                                 "instances of ActivationStatsCollector.".
-                                 format(module.distiller_name, type(module)))
-            else:
-                msglogger.info("Exception in _activation_stats_cb: {} {}".format(module.distiller_name, type(module)))
-                raise
-
-    def _start_counter(self, module):
-        if not hasattr(module, self.stat_name):
-            setattr(module, self.stat_name, WeightedAverageValueMeter())
-            # Assign a name to this summary
-            if hasattr(module, 'distiller_name'):
-                getattr(module, self.stat_name).name = module.distiller_name
-            else:
-                getattr(module, self.stat_name).name = '_'.join((
-                    module.__class__.__name__, str(id(module))))
-
-    def _reset_counter(self, module):
-        if hasattr(module, self.stat_name):
-            getattr(module, self.stat_name).reset()
-
-    def _collect_activations_stats(self, module, activation_stats, name=''):
-        if hasattr(module, self.stat_name):
-            mean = getattr(module, self.stat_name).mean
-            if isinstance(mean, torch.Tensor):
-                mean = mean.tolist()
-            activation_stats[getattr(module, self.stat_name).name] = mean
-
-    def save(self, fname):
-        """Save the stats to an Excel workbook"""
-        if not fname.endswith('.xlsx'):
-            fname = '.'.join([fname, 'xlsx'])
-        with contextlib.suppress(OSError):
-            os.remove(fname)
-
-        def _add_worksheet(workbook, tab_name, record):
-            try:
-                worksheet = workbook.add_worksheet(tab_name)
-            except xlsxwriter.exceptions.InvalidWorksheetName:
-                worksheet = workbook.add_worksheet()
-
-            col_names = []
-            for col, (module_name, module_summary_data) in enumerate(record.items()):
-                if not isinstance(module_summary_data, list):
-                    module_summary_data = [module_summary_data]
-                worksheet.write_column(1, col, module_summary_data)
-                col_names.append(module_name)
-            worksheet.write_row(0, 0, col_names)
-
-        with xlsxwriter.Workbook(fname) as workbook:
-            _add_worksheet(workbook, self.stat_name, self.value())
-
-        return fname
 
 
 
@@ -197,45 +111,6 @@ def _verify_no_dataparallel(model):
 
 
 
-class RawActivationsCollector(ActivationStatsCollector):
-    def __init__(self, model, classes=None):
-        super(RawActivationsCollector, self).__init__(model, "raw_acts", classes)
-
-        _verify_no_dataparallel(model)
-
-    def _activation_stats_cb(self, module, inputs, output):
-        if isinstance(output, torch.Tensor):
-            if output.is_quantized:
-                module.raw_outputs.append(output.dequantize())
-            else:
-                module.raw_outputs.append(output.cpu())
-
-    def _start_counter(self, module):
-        module.raw_outputs = []
-
-    def _reset_counter(self, module):
-        if hasattr(module, 'raw_outputs'):
-            module.raw_outputs = []
-
-    def _collect_activations_stats(self, module, activation_stats, name=''):
-        if not hasattr(module, 'raw_outputs'):
-            return
-
-        if isinstance(module.raw_outputs, list) and len(module.raw_outputs) > 0:
-            module.raw_outputs = torch.stack(module.raw_outputs)
-        activation_stats[module.distiller_name] = module.raw_outputs
-
-    def save(self, dir_name):
-        if not os.path.isdir(dir_name):
-            os.mkdir(dir_name)
-
-        with concurrent.futures.ProcessPoolExecutor() as executor:
-            for idx, (layer_name, raw_outputs) in enumerate(self.value().items()):
-                idx_str = '{:03d}'.format(idx + 1)
-                executor.submit(torch.save, raw_outputs, os.path.join(dir_name,
-                                                                      '-'.join((idx_str, layer_name)) + '.pt'))
-
-        return dir_name
 
 
 def collect_quant_stats(model, test_fn, save_dir=None, classes=None, inplace_runtime_check=False,
