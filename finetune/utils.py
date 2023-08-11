@@ -122,6 +122,27 @@ def find_module_by_fq_name(model, fq_mod_name):
             return module
     return None
 
+def filters_lp_norm(param, p=1, group_len=1, length_normalized=False):
+    """L1/L2 norm of filters sub-tensors in a 4D tensor
+
+    Args:
+        param: shape (num_filters(0), nun_channels(1), kernel_height(2), kernel_width(3))
+        p: the exponent value in the norm formulation
+        group_len: the numbers of (adjacent) filters in each group.  Norms are calculated
+           on the entire group.
+        length_normalized: if True then normalize the norm.  I.e.
+           norm = group_norm / num_elements_in_group
+
+    Returns:
+        1D tensor with norms of the groups
+    """
+    assert p in (1, 2)
+    norm_fn = l1_norm if p == 1 else l2_norm
+    return filters_norm(param, norm_fn, group_len, length_normalized)
+
+def norm_filters(weights, p=1):
+    return filters_lp_norm(weights, p)
+
 
 def normalize_module_name(layer_name):
     """Normalize a module's name.
