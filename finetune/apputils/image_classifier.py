@@ -184,7 +184,7 @@ class ClassifierCompressor(object):
     def test(self):
         self.load_datasets()
         return test(self.test_loader, self.model, self.criterion,
-                    self.pylogger, self.activations_collectors, args=self.args)
+                    self.pylogger, args=self.args)
 
 
 def init_classifier_compression_arg_parser(include_ptq_lapq_args=False):
@@ -623,14 +623,11 @@ def validate(val_loader, model, criterion, loggers, args, epoch=-1):
     return _validate(val_loader, model, criterion, loggers, args, epoch)
 
 
-def test(test_loader, model, criterion, loggers=None, activations_collectors=None, args=None):
+def test(test_loader, model, criterion, loggers=None, args=None):
     """Model Test"""
     msglogger.info('--- test ---------------------')
     if args is None:
         args = ClassifierCompressor.mock_args()
-    if activations_collectors is None:
-        activations_collectors = create_activation_stats_collectors(model, None)
-
     
     top1, top5, lossses = _validate(test_loader, model, criterion, loggers, args)
 
