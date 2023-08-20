@@ -606,7 +606,21 @@ def train(train_loader, model, criterion, optimizer, epoch,
         loss.backward()
         if compression_scheduler:
             compression_scheduler.before_parameter_optimization(epoch, train_step, steps_per_epoch, optimizer)
-        optimizer.step()
+        if args.SAM:
+            optimizer.first_step(zero_grad=True)
+            sam.disable_running_stats(model)
+            if not hasattr(args, "kd_policy") or args.kd_policy is None:
+                output = model(inputs)
+            else:
+                output = args.kd_policy.forward(inputs)
+            if True:
+                
+                    loss = criterion(output, target)
+  
+            loss.backward()
+            optimizer.second_step(zero_grad=True)    
+        else:
+            optimizer.step()
         if compression_scheduler:
             compression_scheduler.on_minibatch_end(epoch, train_step, steps_per_epoch, optimizer)
 
