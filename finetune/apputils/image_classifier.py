@@ -410,6 +410,10 @@ def _init_learner(args):
             msglogger.info('\nreset_optimizer flag set: Overriding resumed optimizer and resetting epoch count to 0')
 
     if optimizer is None and not args.evaluate:
+        args.SAM = args.SAM
+        args.SAM_rho = args.SAM_rho
+        args.SAM_adaptive = args.SAM_adaptive
+
         if args.optimizer == "SGD":
             if args.SAM:
                 optimizer = sam.SAM(
@@ -552,6 +556,10 @@ def train(train_loader, model, criterion, optimizer, epoch,
         data_time.add(time.time() - end)
         inputs, target = inputs.to(args.device), target.to(args.device)
 
+        if args.SAM:
+            sam.enable_running_stats(model)
+
+
         # Execute the forward phase, compute the output and measure loss
         if compression_scheduler:
             compression_scheduler.on_minibatch_begin(epoch, train_step, steps_per_epoch, optimizer)
@@ -594,6 +602,7 @@ def train(train_loader, model, criterion, optimizer, epoch,
 
         # Compute the gradient and do SGD step
         optimizer.zero_grad()
+
         loss.backward()
         if compression_scheduler:
             compression_scheduler.before_parameter_optimization(epoch, train_step, steps_per_epoch, optimizer)
