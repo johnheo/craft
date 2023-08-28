@@ -43,7 +43,7 @@ import config as configs
 import scheduler as scheduler
 # Logger handle
 msglogger = logging.getLogger()
-
+from asam import ASAM
 
 class ClassifierCompressor(object):
     """Base class for applications that want to compress image classifiers.
@@ -70,7 +70,7 @@ class ClassifierCompressor(object):
             self.tflogger = TensorBoardLogger(msglogger.logdir)
             self.pylogger = PythonLogger(msglogger)
         (self.model, self.compression_scheduler, self.optimizer, 
-             self.start_epoch, self.ending_epoch) = _init_learner(self.args)
+             self.start_epoch, self.ending_epoch, self.minimizer) = _init_learner(self.args)
 
         # Define loss function (criterion)
         self.criterion = nn.CrossEntropyLoss().to(self.args.device)
@@ -113,7 +113,7 @@ class ClassifierCompressor(object):
         
         top1, top5, loss = train(self.train_loader, self.model, self.criterion, self.optimizer, 
                                      epoch, self.compression_scheduler, 
-                                     loggers=[self.tflogger, self.pylogger], args=self.args)
+                                     loggers=[self.tflogger, self.pylogger], args=self.args, self.minimizer)
 
         return top1, top5, loss
 
@@ -126,7 +126,7 @@ class ClassifierCompressor(object):
             top1, top5, loss = self.validate_one_epoch(epoch, verbose)
 
         if self.compression_scheduler:
-            self.compression_scheduler.on_epoch_end(epoch, self.optimizer, 
+            self.compression_scheduler.on_epoch_end(epoch, self.minimizer.optimizer, 
                                                     metrics={'min': loss, 'max': top1})
         return top1, top5, loss
 
@@ -225,6 +225,11 @@ def init_classifier_compression_arg_parser(include_ptq_lapq_args=False):
     parser.add_argument(
         "--SAM-rho", default=0.05, type=float, help="Rho parameter for SAM"
     )
+
+    parser.add_argument("--rho", default=0.5, type=float, help="Rho for ASAM.")
+    parser.add_argument("--eta", default=0.0, type=float, help="Eta for ASAM.")
+
+    
     parser.add_argument('-b', '--batch-size', default=256, type=int,
                         metavar='N', help='mini-batch size (default: 256)')
 
@@ -425,6 +430,7 @@ def _init_learner(args):
                     rho=args.SAM_rho,
                     adaptive=args.SAM_adaptive,
                 )
+
                 
             else:
                 optimizer = torch.optim.SGD(
@@ -433,20 +439,21 @@ def _init_learner(args):
                     momentum=args.momentum,
                     weight_decay=args.weight_decay,
                 )
+                minimizer = ASAM(optimizer, model, rho=args.rho, eta=args.eta)
         msglogger.debug('Optimizer Type: %s', type(optimizer))
         msglogger.debug('Optimizer Args: %s', optimizer.defaults)
 
     if args.compress:
         # The main use-case for this sample application is CNN compression. Compression
         # requires a compression schedule configuration file in YAML.
-        compression_scheduler = configs.file_config(model, optimizer, args.compress, compression_scheduler,
+        compression_scheduler = configs.file_config(model, minimizer.optimizer, args.compress, compression_scheduler,
             (start_epoch-1) if args.resumed_checkpoint_path else None)
         # Model is re-transferred to GPU in case parameters were added (e.g. PACTQuantizer)
         model.to(args.device)
     elif compression_scheduler is None:
         compression_scheduler = scheduler.CompressionScheduler(model)
 
-    return model, compression_scheduler, optimizer, start_epoch, args.epochs
+    return model, compression_scheduler, optimizer, start_epoch, args.epochs, minimizer
 
 
 
@@ -488,7 +495,7 @@ def load_data(args, fixed_subset=False, sequential=False, load_train=True, load_
 
 
 def train(train_loader, model, criterion, optimizer, epoch,
-          compression_scheduler, loggers, args):
+          compression_scheduler, loggers, args, minimizer):
     """Training-with-compression loop for one epoch.
     
     For each training step in epoch:
@@ -562,7 +569,7 @@ def train(train_loader, model, criterion, optimizer, epoch,
 
         # Execute the forward phase, compute the output and measure loss
         if compression_scheduler:
-            compression_scheduler.on_minibatch_begin(epoch, train_step, steps_per_epoch, optimizer)
+            compression_scheduler.on_minibatch_begin(epoch, train_step, steps_per_epoch, minimizer.optimizer)
 
         if not hasattr(args, 'kd_policy') or args.kd_policy is None:
             output = model(inputs)
@@ -589,7 +596,7 @@ def train(train_loader, model, criterion, optimizer, epoch,
             # Before running the backward phase, we allow the scheduler to modify the loss
             # (e.g. add regularization loss)
             agg_loss = compression_scheduler.before_backward_pass(epoch, train_step, steps_per_epoch, loss,
-                                                                  optimizer=optimizer, return_loss_components=True)
+                                                                  optimizer=minimizer.optimizer, return_loss_components=True)
             loss = agg_loss.overall_loss
             losses[OVERALL_LOSS_KEY].add(loss.item())
 
@@ -601,11 +608,11 @@ def train(train_loader, model, criterion, optimizer, epoch,
             losses[OVERALL_LOSS_KEY].add(loss.item())
 
         # Compute the gradient and do SGD step
-        optimizer.zero_grad()
-
+        #optimizer.zero_grad()
+        minimizer.ascent_step()
         loss.backward()
         if compression_scheduler:
-            compression_scheduler.before_parameter_optimization(epoch, train_step, steps_per_epoch, optimizer)
+            compression_scheduler.before_parameter_optimization(epoch, train_step, steps_per_epoch, minimizer.optimizer)
         if args.SAM:
             optimizer.first_step(zero_grad=True)
             sam.disable_running_stats(model)
@@ -620,9 +627,10 @@ def train(train_loader, model, criterion, optimizer, epoch,
             loss.backward()
             optimizer.second_step(zero_grad=True)    
         else:
-            optimizer.step()
+            #optimizer.step()
+            minimizer.descent_step()
         if compression_scheduler:
-            compression_scheduler.on_minibatch_end(epoch, train_step, steps_per_epoch, optimizer)
+            compression_scheduler.on_minibatch_end(epoch, train_step, steps_per_epoch, minimizer.optimizer)
 
         # measure elapsed time
         batch_time.add(time.time() - end)
