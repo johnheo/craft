@@ -207,7 +207,7 @@ def init_classifier_compression_arg_parser(include_ptq_lapq_args=False):
     parser.add_argument(
         "--optimizer",
         type=str,
-        default="SGD",
+        default="Adam",
         choices=["Adam", "SGD"],
         help="Optimizer (default: Adam)",
     )
@@ -419,7 +419,27 @@ def _init_learner(args):
         args.SAM_rho = args.SAM_rho
         args.SAM_adaptive = args.SAM_adaptive
 
-        if args.optimizer == "SGD":
+        if args.optimizer == "Adam":
+            if args.SAM:
+                optimizer = sam.SAM(
+                    model.parameters(),
+                    torch.optim.Adam,
+                    lr=args.lr,
+                    weight_decay=args.weight_decay,
+                    rho=args.SAM_rho,
+                    adaptive=args.SAM_adaptive,
+                )
+
+               # optimizer = sam.SAM(
+               # [{feature_ext_p, torch.optim.Adam, args.lr / 10, args.weight_decay, args.SAM_rho, args.SAM_adaptive },
+               #  {classifier_p, torch.optim.Adam, args.lr, args.weight_decay, args.SAM_rho, args.SAM_adaptive }]
+               # )
+                minimizer = ASAM(optimizer, model, rho=args.rho, eta=args.eta)
+            else:
+                optimizer = torch.optim.Adam(model.parameters(), lr = args.lr, weight_decay = args.weight_decay)
+                minimizer = ASAM(optimizer, model, rho=args.rho, eta=args.eta)
+                
+        elif args.optimizer == "SGD":
             if args.SAM:
                 optimizer = sam.SAM(
                     model.parameters(),
